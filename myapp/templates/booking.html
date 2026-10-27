@@ -1,0 +1,722 @@
+
+{% extends "layout.html" %}
+{% load static %}
+
+{% block title %}
+<title>Pool Game Booking</title>
+{% endblock %}
+
+{% block css %}
+    <link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="booking-page"
+    data-monthly-slot-limit="{{ monthly_booking_limit }}"
+    data-custom-slot-limit="{{ custom_booking_limit }}">
+
+    <header class="booking-heading">
+        <p class="booking-eyebrow">POOL CLUB <span aria-hidden="true"></span> BOOKINGS</p>
+        <h1>Book Your Tournament</h1>
+        <p class="booking-description">Choose a plan and reserve your preferred dates and time.</p>
+    </header>
+
+    <div class="plan-container" role="group" aria-label="Choose a booking plan">
+        <button type="button" class="plan-card active" data-plan="basic" aria-pressed="true">
+            <h3>Basic</h3>
+            <p><strong>₹300</strong> <span>/ booking</span></p>
+        </button>
+        <button type="button" class="plan-card" data-plan="monthly" aria-pressed="false">
+            <h3>Monthly</h3>
+            <p><strong>₹2400</strong> <span>/ 8 bookings</span></p>
+        </button>
+        <button type="button" class="plan-card" data-plan="custom" aria-pressed="false">
+            <h3>Custom</h3>
+            <p><strong>₹300</strong> <span>/ booking · up to 8 dates</span></p>
+        </button>
+    </div>
+
+    <form method="POST" id="bookingForm">
+        {% csrf_token %}
+        {{ form.plan }}
+        {{ form.date }}
+        {{ form.weekdays }}
+        {{ form.custom_dates }}
+
+        <div class="time-section">
+            <label for="id_time_Slot">Select Time Slot</label>
+            {{ form.time_Slot }}
+        </div>
+
+        <div class="booking-calendar-layout">
+            <section class="calendar-box" aria-label="Choose booking dates"
+                data-holidays-url="{% url 'dashboard_holidays' %}">
+                <div class="calendar-header">
+                    <button type="button" id="prevMonth" aria-label="Previous month">&#8249;</button>
+                    <h3 id="monthYear" aria-live="polite"></h3>
+                    <button type="button" id="nextMonth" aria-label="Next month">&#8250;</button>
+                </div>
+
+                <section class="monthly-week-section" id="weekdaySection" hidden>
+                    <div class="monthly-week-heading">
+                        <h3>Choose two weekdays</h3>
+                        <span>Maximum {{ monthly_booking_limit }} bookings</span>
+                    </div>
+                    <nav class="monthly-week-nav" aria-label="Choose monthly booking weekdays">
+                        <button type="button" data-weekday-choice="0" aria-pressed="false">Mon</button>
+                        <button type="button" data-weekday-choice="1" aria-pressed="false">Tue</button>
+                        <button type="button" data-weekday-choice="2" aria-pressed="false">Wed</button>
+                        <button type="button" data-weekday-choice="3" aria-pressed="false">Thu</button>
+                        <button type="button" data-weekday-choice="4" aria-pressed="false">Fri</button>
+                        <button type="button" data-weekday-choice="5" aria-pressed="false">Sat</button>
+                        <button type="button" data-weekday-choice="6" aria-pressed="false">Sun</button>
+                    </nav>
+                    <p class="monthly-week-description">Choose two weekdays to automatically select a start date next month and see your bookings on the calendar. Four bookings per weekday; holidays move to the next available occurrence of that weekday.</p>
+                    <p id="weekdayMessage" aria-live="polite">Select exactly two weekdays.</p>
+                </section>
+
+                <div class="calendar-weekdays">
+                    <span>Sun</span>
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                </div>
+
+                <div id="calendarDays" class="calendar-days"></div>
+
+                <div class="calendar-legend">
+                    <span><i class="legend-holiday" aria-hidden="true"></i> Holiday — not bookable</span>
+                </div>
+                <p class="calendar-message" id="calendarMessage" role="status" aria-live="polite"></p>
+            </section>
+
+            <div class="booking-summary">
+                <div class="summary-card">
+                    <h3 id="selectionTitle">Booking date</h3>
+                    <p id="selectedDateText" aria-live="polite">No date selected</p>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Booking summary</h3>
+                    <p>Bookings: <span id="slotCount">0</span></p>
+                    <strong id="totalPrice">₹0</strong>
+                </div>
+                <div class="booking-submit-section">
+                    {% if form.errors %}
+                    <div class="booking-error" role="alert">
+                        {% for field in form %}
+                            {% for error in field.errors %}<p>{{ error }}</p>{% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if messages %}
+                    <div class="booking-messages" role="status">
+                        {% for message in messages %}<p class="message">{{ message }}</p>{% endfor %}
+                    </div>
+                    {% endif %}
+                    <button type="submit" class="book-btn">Confirm booking</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+</div>
+
+
+<script>
+    const planCards = document.querySelectorAll(".plan-card");
+    const bookingPage = document.querySelector(".booking-page");
+
+    const monthlySlotLimit = Number(bookingPage.dataset.monthlySlotLimit);
+    const customSlotLimit = Number(bookingPage.dataset.customSlotLimit);
+
+    const planInput = document.getElementById("id_plan");
+    const dateInput = document.getElementById("id_date");
+    const weekdaysInput = document.getElementById("id_weekdays");
+    const customDatesInput = document.getElementById("id_custom_dates");
+
+    const weekdaySection = document.getElementById("weekdaySection");
+    const weekdayChoices = document.querySelectorAll("[data-weekday-choice]");
+    const weekdayMessage = document.getElementById("weekdayMessage");
+
+    const calendarDays = document.getElementById("calendarDays");
+    const monthYear = document.getElementById("monthYear");
+    const calendarMessage = document.getElementById("calendarMessage");
+    const selectedDateText = document.getElementById("selectedDateText");
+
+    const calendarBox = document.querySelector(".calendar-box");
+    const holidayUrl = calendarBox.dataset.holidaysUrl;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const holidayCache = new Map();
+
+    const customDates = new Set(
+        customDatesInput.value
+            ? customDatesInput.value.split(",").filter(Boolean)
+            : []
+    );
+
+    let displayedMonth = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1
+    );
+
+    let renderSequence = 0;
+
+    const weekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    // YYYY-MM-DD format using local date.
+    function formatLocalDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+
+        return `${year}-${month}-${day}`;
+    }
+
+    // Parse a date without UTC conversion.
+    function parseLocalDate(value) {
+        if (!value) return null;
+
+        const [year, month, day] = value.split("-").map(Number);
+
+        return new Date(year, month - 1, day);
+    }
+
+    // Monday = 0, Tuesday = 1, ... Sunday = 6.
+    function getMondayBasedWeekday(date) {
+        return (date.getDay() + 6) % 7;
+    }
+
+    function selectedWeekdays() {
+        return Array.from(weekdayChoices)
+            .filter(button => button.getAttribute("aria-pressed") === "true")
+            .map(button => button.dataset.weekdayChoice);
+    }
+
+    function getMonthlyStartDate(weekdays) {
+        const startDate = new Date(
+            today.getFullYear(),
+            today.getMonth() + 1,
+            1
+        );
+        const firstWeekday = Math.min(...weekdays.map(Number));
+        const daysAhead =
+            (firstWeekday - getMondayBasedWeekday(startDate) + 7) % 7;
+
+        startDate.setDate(startDate.getDate() + daysAhead);
+        return startDate;
+    }
+
+    function setAutomaticMonthlyStartDate(weekdays) {
+        if (
+            planInput.value !== "monthly" ||
+            dateInput.value ||
+            weekdays.length !== 2
+        ) {
+            return false;
+        }
+
+        const startDate = getMonthlyStartDate(weekdays);
+        dateInput.value = formatLocalDate(startDate);
+        displayedMonth = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth(),
+            1
+        );
+        return true;
+    }
+
+    function updateWeekdaySelection() {
+        const selected = selectedWeekdays();
+
+        weekdaysInput.value = selected.join(",");
+
+        weekdayChoices.forEach(button => {
+            const isSelected = selected.includes(button.dataset.weekdayChoice);
+
+            button.setAttribute("aria-pressed", String(isSelected));
+
+            button.disabled = selected.length === 2 && !isSelected;
+        });
+
+        weekdayMessage.textContent = selected.length === 2
+            ? `Selected: ${Array.from(weekdayChoices)
+                .filter(button => selected.includes(button.dataset.weekdayChoice))
+                .map(button => button.textContent.trim())
+                .join(" and ")}.`
+            : "Select exactly two weekdays.";
+    }
+
+    // Update booking summary.
+    function updateSummary() {
+        const plan = planInput.value;
+        const startDate = parseLocalDate(dateInput.value);
+
+        const count = plan === "monthly"
+            ? (selectedWeekdays().length === 2 && startDate ? monthlySlotLimit : 0)
+            : plan === "custom"
+                ? customDates.size
+                : (startDate ? 1 : 0);
+
+        document.getElementById("slotCount").textContent = String(count);
+
+        const pricePerBooking = 300;
+
+        document.getElementById("totalPrice").textContent =
+            `₹${plan === "monthly" ? count * pricePerBooking : count * pricePerBooking}`;
+
+        document.getElementById("selectionTitle").textContent =
+            plan === "monthly"
+                ? "Schedule starts"
+                : plan === "custom"
+                    ? "Selected dates"
+                    : "Booking date";
+
+        if (plan === "custom") {
+            const dates = Array.from(customDates).sort();
+
+            selectedDateText.textContent = dates.length
+                ? dates.map(value =>
+                    parseLocalDate(value).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric"
+                    })
+                ).join(", ")
+                : `Choose up to ${customSlotLimit} dates`;
+
+        } else if (startDate) {
+            const formattedStartDate = startDate.toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "long",
+                year: "numeric"
+            });
+
+            selectedDateText.textContent =
+                plan === "monthly" && selectedWeekdays().length === 2
+                    ? `${selectedWeekdays()
+                        .map(value =>
+                            weekdayNames[(Number(value) + 1) % 7]
+                        )
+                        .join(" + ")} · starts ${formattedStartDate}`
+                    : formattedStartDate;
+
+        } else {
+            selectedDateText.textContent = "Choose a date in the calendar";
+        }
+    }
+
+    function updatePlan() {
+        weekdaySection.hidden = planInput.value !== "monthly";
+
+        planCards.forEach(card => {
+            const selected = card.dataset.plan === planInput.value;
+
+            card.classList.toggle("active", selected);
+            card.setAttribute("aria-pressed", String(selected));
+        });
+
+        updateSummary();
+        renderCalendar();
+    }
+
+    // Plan selection. Clear hidden values that belong to another plan.
+    planCards.forEach(card => {
+        card.addEventListener("click", () => {
+            const nextPlan = card.dataset.plan;
+
+            if (nextPlan !== "monthly") {
+                weekdayChoices.forEach(button => {
+                    button.setAttribute("aria-pressed", "false");
+                });
+                weekdaysInput.value = "";
+                updateWeekdaySelection();
+            }
+
+            if (nextPlan !== "custom") {
+                customDates.clear();
+                customDatesInput.value = "";
+            }
+
+            if (nextPlan === "custom") {
+                // Custom uses its own multiple-date selection, not the start-date field.
+                dateInput.value = "";
+            }
+
+            planInput.value = nextPlan;
+            calendarMessage.textContent = "";
+            updatePlan();
+        });
+    });
+
+    // Restore weekday selections after a form error.
+    const submittedWeekdays = weekdaysInput.value
+        ? weekdaysInput.value.split(",")
+        : [];
+
+    weekdayChoices.forEach(button => {
+        button.setAttribute(
+            "aria-pressed",
+            String(submittedWeekdays.includes(button.dataset.weekdayChoice))
+        );
+
+        button.addEventListener("click", () => {
+            const isSelected = button.getAttribute("aria-pressed") === "true";
+
+            if (!isSelected && selectedWeekdays().length >= 2) {
+                return;
+            }
+
+            button.setAttribute("aria-pressed", String(!isSelected));
+
+            updateWeekdaySelection();
+
+            if (setAutomaticMonthlyStartDate(selectedWeekdays())) {
+                calendarMessage.textContent =
+                    "Start date selected automatically. Your monthly bookings are highlighted.";
+            }
+
+            updateSummary();
+            renderCalendar();
+        });
+    });
+
+    updateWeekdaySelection();
+    setAutomaticMonthlyStartDate(selectedWeekdays());
+
+    // Fetch holiday data from the existing Django endpoint.
+    async function loadHolidays(year) {
+        if (holidayCache.has(year)) {
+            return holidayCache.get(year);
+        }
+
+        const separator = holidayUrl.includes("?") ? "&" : "?";
+
+        const response = await fetch(
+            `${holidayUrl}${separator}year=${year}`,
+            {
+                headers: { Accept: "application/json" }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not load holiday dates.");
+        }
+
+        if (
+            data.year !== year ||
+            !data.holidays ||
+            typeof data.holidays !== "object"
+        ) {
+            throw new Error("Invalid holiday data received.");
+        }
+
+        holidayCache.set(year, data.holidays);
+
+        return data.holidays;
+    }
+
+    /*
+     * MONTHLY DATE GENERATION
+     *
+     * Har selected weekday ki 4 future, non-holiday dates lo.
+     * Holiday date count nahi hogi; next occurrence check hogi.
+     * Is function ka result calendar highlighting mein directly use hota hai.
+     */
+    async function getMonthlyDates(weekdays) {
+        const dates = [];
+        const startDate = parseLocalDate(dateInput.value);
+
+        if (!startDate || weekdays.length !== 2) {
+            return dates;
+        }
+
+        for (const weekdayValue of weekdays) {
+            const targetWeekday = Number(weekdayValue);
+            const daysAhead =
+                (targetWeekday - getMondayBasedWeekday(startDate) + 7) % 7;
+
+            const selectedDate = new Date(startDate);
+            selectedDate.setDate(selectedDate.getDate() + daysAhead);
+
+            let selectedCount = 0;
+            let checkedOccurrences = 0;
+
+            while (
+                selectedCount < monthlySlotLimit / 2 &&
+                checkedOccurrences < 52
+            ) {
+                const dateValue = formatLocalDate(selectedDate);
+                const holidays = await loadHolidays(selectedDate.getFullYear());
+
+                if (
+                    selectedDate >= today &&
+                    !holidays[dateValue]
+                ) {
+                    dates.push(dateValue);
+                    selectedCount++;
+                }
+
+                selectedDate.setDate(selectedDate.getDate() + 7);
+                checkedOccurrences++;
+            }
+        }
+
+        return dates;
+    }
+
+    // Render calendar.
+    async function renderCalendar() {
+        const sequence = ++renderSequence;
+
+        const year = displayedMonth.getFullYear();
+        const month = displayedMonth.getMonth();
+
+        calendarDays.replaceChildren();
+        calendarDays.setAttribute("aria-busy", "true");
+
+        monthYear.textContent = displayedMonth.toLocaleDateString("en-IN", {
+            month: "long",
+            year: "numeric"
+        });
+
+        let holidays = {};
+
+        try {
+            holidays = await loadHolidays(year);
+        } catch (error) {
+            if (sequence !== renderSequence) return;
+
+            calendarMessage.textContent =
+                `Holiday dates could not be loaded. ${error.message}`;
+
+            calendarDays.setAttribute("aria-busy", "false");
+            return;
+        }
+
+        if (sequence !== renderSequence) return;
+
+        calendarMessage.textContent = "";
+
+        let monthlyDates = new Set();
+        if (planInput.value === "monthly" && selectedWeekdays().length === 2) {
+            try {
+                monthlyDates = new Set(await getMonthlyDates(selectedWeekdays()));
+            } catch (error) {
+                if (sequence !== renderSequence) return;
+
+                calendarMessage.textContent =
+                    `Monthly dates could not be loaded. ${error.message}`;
+                calendarDays.setAttribute("aria-busy", "false");
+                return;
+            }
+        }
+
+        if (
+            planInput.value === "monthly" &&
+            selectedWeekdays().length === 2 &&
+            monthlyDates.size !== monthlySlotLimit
+        ) {
+            calendarMessage.textContent =
+                "All monthly dates could not be generated. Try selecting different weekdays.";
+        }
+        if (sequence !== renderSequence) return;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+
+        // Empty cells before the first day.
+        for (let i = 0; i < firstDay; i++) {
+            const empty = document.createElement("div");
+            empty.className = "calendar-day empty";
+            calendarDays.appendChild(empty);
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+            const date = new Date(year, month, day);
+            const dateValue = formatLocalDate(date);
+            const holidayName = holidays[dateValue];
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "calendar-day";
+
+            button.setAttribute(
+                "aria-label",
+                `${date.toLocaleDateString("en-IN", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric"
+                })}${holidayName ? `: ${holidayName}, unavailable` : ""}`
+            );
+
+            const dayNumber = document.createElement("span");
+            dayNumber.textContent = day;
+
+            const weekdayLabel = document.createElement("small");
+            weekdayLabel.textContent = weekdayNames[date.getDay()];
+
+            button.append(dayNumber, weekdayLabel);
+
+            // Only calculated monthly dates receive the Weekly marker.
+            if (monthlyDates.has(dateValue)) {
+                button.classList.add("monthly-weekday");
+
+                const marker = document.createElement("small");
+                marker.className = "monthly-weekday-marker";
+                marker.textContent = "Weekly";
+
+                button.appendChild(marker);
+            }
+
+            // Holidays remain red and disabled.
+            if (holidayName) {
+                button.classList.add("holiday");
+                button.title = `${holidayName} — unavailable for booking`;
+
+                const holidayLabel = document.createElement("small");
+                holidayLabel.className = "holiday-name";
+                holidayLabel.textContent = holidayName;
+
+                button.appendChild(holidayLabel);
+                button.disabled = true;
+
+            } else if (date < today) {
+                button.disabled = true;
+                button.classList.add("past");
+            }
+
+            // Basic/Custom selected state.
+            const selected = planInput.value === "custom"
+                ? customDates.has(dateValue)
+                : (
+                    (planInput.value === "basic" || planInput.value === "monthly") &&
+                    dateInput.value === dateValue
+                );
+
+            if (selected) {
+                button.classList.add("selected");
+            }
+
+            // Calendar click handling.
+            button.addEventListener("click", () => {
+                if (button.disabled) return;
+
+                if (planInput.value === "monthly") {
+                    // Selecting a calendar date sets the Monthly schedule's start date.
+                    dateInput.value = dateValue;
+                    displayedMonth = new Date(
+                        date.getFullYear(),
+                        date.getMonth(),
+                        1
+                    );
+                    calendarMessage.textContent =
+                        selectedWeekdays().length === 2
+                            ? "Start date selected. Monthly dates are highlighted for your two weekdays."
+                            : "Start date selected. Now choose exactly two weekdays.";
+                    updateSummary();
+                    renderCalendar();
+                    return;
+                }
+
+                if (planInput.value === "custom") {
+                    if (customDates.has(dateValue)) {
+                        customDates.delete(dateValue);
+
+                    } else if (customDates.size < customSlotLimit) {
+                        customDates.add(dateValue);
+
+                    } else {
+                        calendarMessage.textContent =
+                            `Custom bookings can include at most ${customSlotLimit} dates.`;
+                        return;
+                    }
+
+                    customDatesInput.value =
+                        Array.from(customDates).sort().join(",");
+
+                } else {
+                    dateInput.value = dateValue;
+                }
+
+                updateSummary();
+                renderCalendar();
+            });
+
+            calendarDays.appendChild(button);
+        }
+
+        document.getElementById("prevMonth").disabled =
+            year === today.getFullYear() &&
+            month === today.getMonth();
+
+        calendarDays.setAttribute("aria-busy", "false");
+    }
+
+    // Previous month.
+    document.getElementById("prevMonth").addEventListener("click", () => {
+        displayedMonth = new Date(
+            displayedMonth.getFullYear(),
+            displayedMonth.getMonth() - 1,
+            1
+        );
+
+        renderCalendar();
+    });
+
+    // Next month.
+    document.getElementById("nextMonth").addEventListener("click", () => {
+        displayedMonth = new Date(
+            displayedMonth.getFullYear(),
+            displayedMonth.getMonth() + 1,
+            1
+        );
+
+        renderCalendar();
+    });
+
+    // Validate before submitting.
+    document.getElementById("bookingForm").addEventListener("submit", event => {
+        if (
+            (planInput.value === "basic" || planInput.value === "monthly") &&
+            !dateInput.value
+        ) {
+            event.preventDefault();
+            calendarMessage.textContent = "Choose a start date in the calendar.";
+
+        } else if (
+            planInput.value === "monthly" &&
+            selectedWeekdays().length !== 2
+        ) {
+            event.preventDefault();
+            weekdayMessage.textContent =
+                "Select exactly two weekdays before booking.";
+
+        } else if (
+            planInput.value === "custom" &&
+            (customDates.size < 1 || customDates.size > customSlotLimit)
+        ) {
+            event.preventDefault();
+            calendarMessage.textContent =
+                `Choose between 1 and ${customSlotLimit} custom dates.`;
+        }
+    });
+
+    // Initial render.
+    updatePlan();
+</script>
+
+
+{% endblock %}

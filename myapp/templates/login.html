@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+<title>Log in | Game Slot Booking</title>
+{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/login.css' %}">
+{% endblock %}
+
+{% block content %}
+<main class="login-page">
+    <section class="login-card" aria-labelledby="login-title">
+        <div class="login-visual">
+            <img src="{% static 'assets/login_page_image.jpg' %}" alt="A welcoming game room">
+            <div class="login-visual-content">
+                <span class="login-mark" aria-hidden="true">8</span>
+                <p class="login-visual-eyebrow">YOUR NEXT GAME STARTS HERE</p>
+                <h2>Make room for<br>one more game.</h2>
+                <p>Find your table, book your slot, and enjoy the game.</p>
+            </div>
+        </div>
+
+        <div class="login-content">
+            <div class="login-heading">
+                <p class="login-eyebrow">GAME SLOT BOOKING</p>
+                <h1 id="login-title">Welcome back</h1>
+                <p>Log in to continue to your account.</p>
+            </div>
+
+            {% if messages %}
+                <div class="login-messages" role="status">
+                    {% for message in messages %}
+                        <p>{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form class="login-form" method="post">
+                {% csrf_token %}
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+                <button class="login-btn" type="submit">Log in <span aria-hidden="true">→</span></button>
+            </form>
+
+            <p class="login-register">New to the club? <a href="{% url 'register' %}">Create an account</a></p>
+        </div>
+    </section>
+</main>
+{% endblock %}

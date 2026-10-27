@@ -1,0 +1,264 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block title %}
+<title>Dashboard</title>
+{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div class="main-content">
+        {% comment %} welcome message {% endcomment %}
+        <div class='wlc'>
+            <h3 >Welcome <span class='name'>{{user.first_name}}</span></h3>
+            <p>Manage your tournament and booking</p>
+        </div>
+        {% comment %}  user profile data {% endcomment %}
+        <div class="user-info">
+            <div class="user-name-image">
+                <div id="image-border">
+                    {% comment %} user image {% endcomment %}
+                    {% if profile and profile.profile_image %}
+                    <img src="{{ profile.profile_image.url }}" alt="Profile Image">
+                    {% endif %}
+                </div>
+                <div id="user-name">
+                    {% comment %} user name {% endcomment %}
+                    <h2>{{user.first_name}}</h2>
+                    {% if profile %}<p>Age {{ profile.age }}</p>{% endif %}
+                </div>
+
+            </div>
+            <a class="book-link" href="{% url 'booking' %}">Book Tournament</a>
+        </div>
+
+
+        {% comment %} user game data {% endcomment %}
+        <div class="game-main">
+            <div>
+                <p> Total slots</p>
+                <h2>0</h2>
+            </div>
+
+            <div>
+                <p>Active slots </p>
+                <h2>0</h2>
+            </div>
+
+            <div>
+                <p>Holiday Shifted</p>
+                <h2>0</h2>
+            </div>
+
+            <div>
+                <p> Cancelled</p>
+                <h2>0</h2>
+            </div>
+
+        </div>
+        {% comment %} calender {% endcomment %}
+        <section class="year-overview" aria-labelledby="year-overview-title"
+            data-holidays-url="{% url 'dashboard_holidays' %}">
+            <div class="year-header">
+                <div>
+                    <p class="calendar-eyebrow">PLAN AHEAD</p>
+                    <h3 id="year-overview-title">Year overview</h3>
+                </div>
+                <div class="year-controls">
+                    <button type="button" id="previous-year" aria-label="Previous year">
+                        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <span id="calendarYear" aria-live="polite"></span>
+                    <button type="button" id="next-year" aria-label="Next year">
+                        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="year-calendar" id="yearCalendar"></div>
+
+            <div class="calendar-legend" aria-label="Calendar legend">
+                <span>
+                    <i class="legend-dot today-dot" aria-hidden="true"></i>
+                    Today
+                </span>
+                <span id="festivalLegend">
+                    <i class="legend-dot festival-dot" aria-hidden="true"></i>
+                    Festival / national holiday
+                </span>
+                <span>
+                    <i class="legend-dot selected-dot" aria-hidden="true"></i>
+                    Selected
+                </span>
+            </div>
+            
+            <p class="calendar-status" id="calendarStatus" role="status" aria-live="polite"></p>
+            <p class="selected-date" id="selectedDate" aria-live="polite">Select a date to view it here.</p>
+        </section>
+    </div>
+    <script>
+        (() => {
+            const yearCalendar = document.getElementById("yearCalendar");
+            const calendarYear = document.getElementById("calendarYear");
+            const calendarStatus = document.getElementById("calendarStatus");
+            const selectedDateLabel = document.getElementById("selectedDate");
+            const calendarSection = document.querySelector(".year-overview");
+            const today = new Date();
+            const minimumYear = 2001;
+            const maximumYear = 2035;
+            let displayedYear = Math.min(Math.max(today.getFullYear(), minimumYear), maximumYear);
+            let renderSequence = 0;
+
+            const monthNames = [
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+            ];
+            const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+            function createMonth(monthIndex, festivals) {
+                const monthCard = document.createElement("article");
+                monthCard.className = "month-card";
+                monthCard.setAttribute("aria-label", `${monthNames[monthIndex]} ${displayedYear}`);
+
+                const heading = document.createElement("h4");
+                heading.textContent = monthNames[monthIndex];
+                monthCard.appendChild(heading);
+
+                const daysGrid = document.createElement("div");
+                daysGrid.className = "days-grid";
+                daysGrid.setAttribute("aria-label", `${monthNames[monthIndex]} ${displayedYear}`);
+
+                weekDays.forEach((weekDay) => {
+                    const dayName = document.createElement("span");
+                    dayName.className = "day-name";
+                    dayName.textContent = weekDay;
+                    daysGrid.appendChild(dayName);
+                });
+
+                const firstWeekday = new Date(displayedYear, monthIndex, 1).getDay();
+                const daysInMonth = new Date(displayedYear, monthIndex + 1, 0).getDate();
+
+                for (let blank = 0; blank < firstWeekday; blank += 1) {
+                    const emptyDay = document.createElement("span");
+                    emptyDay.className = "day empty";
+                    emptyDay.setAttribute("aria-hidden", "true");
+                    daysGrid.appendChild(emptyDay);
+                }
+
+                for (let day = 1; day <= daysInMonth; day += 1) {
+                    const date = new Date(displayedYear, monthIndex, day);
+                    const dateKey = [
+                        displayedYear,
+                        String(monthIndex + 1).padStart(2, "0"),
+                        String(day).padStart(2, "0")
+                    ].join("-");
+                    const isToday = date.toDateString() === today.toDateString();
+                    const festival = festivals[dateKey];
+                    const dateCell = document.createElement("button");
+
+                    dateCell.type = "button";
+                    dateCell.className = "day";
+                    dateCell.textContent = day;
+                    dateCell.setAttribute("aria-label", `${day} ${monthNames[monthIndex]} ${displayedYear}`);
+
+                    if (isToday) {
+                        dateCell.classList.add("today");
+                        dateCell.title = "Today";
+                        dateCell.setAttribute("aria-current", "date");
+                    }
+                    if (festival) {
+                        dateCell.classList.add("festival");
+                        dateCell.title = festival;
+                        dateCell.setAttribute(
+                            "aria-label",
+                            `${day} ${monthNames[monthIndex]} ${displayedYear}: ${festival}`
+                        );
+                    }
+
+                    dateCell.addEventListener("click", () => {
+                        yearCalendar.querySelectorAll(".day.selected").forEach((selectedDay) => {
+                            selectedDay.classList.remove("selected");
+                        });
+                        dateCell.classList.add("selected");
+                        selectedDateLabel.textContent = `Selected: ${date.toLocaleDateString(undefined, {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric"
+                        })}`;
+                    });
+
+                    daysGrid.appendChild(dateCell);
+                }
+
+                monthCard.appendChild(daysGrid);
+                return monthCard;
+            }
+
+            async function renderYear() {
+                const sequence = ++renderSequence;
+                calendarYear.textContent = displayedYear;
+                document.getElementById("previous-year").disabled = displayedYear <= minimumYear;
+                document.getElementById("next-year").disabled = displayedYear >= maximumYear;
+                yearCalendar.replaceChildren();
+                yearCalendar.setAttribute("aria-busy", "true");
+                calendarStatus.textContent = "Loading festival dates…";
+                selectedDateLabel.textContent = "Select a date to view it here.";
+
+                try {
+                    const response = await fetch(
+                        `${calendarSection.dataset.holidaysUrl}?year=${displayedYear}`,
+                        { headers: { Accept: "application/json" } }
+                    );
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Could not load festival dates.");
+                    }
+                    if (
+                        data.year !== displayedYear ||
+                        !data.holidays ||
+                        typeof data.holidays !== "object"
+                    ) {
+                        throw new Error("The festival calendar returned invalid data.");
+                    }
+                    if (sequence !== renderSequence) {
+                        return;
+                    }
+
+                    for (let month = 0; month < 12; month += 1) {
+                        yearCalendar.appendChild(createMonth(month, data.holidays));
+                    }
+                    calendarStatus.textContent = "";
+                } catch (error) {
+                    if (sequence !== renderSequence) {
+                        return;
+                    }
+                    calendarStatus.textContent = `Festival dates could not be loaded: ${error.message}`;
+                } finally {
+                    if (sequence === renderSequence) {
+                        yearCalendar.setAttribute("aria-busy", "false");
+                    }
+                }
+            }
+
+            document.getElementById("previous-year").addEventListener("click", () => {
+                if (displayedYear > minimumYear) {
+                    displayedYear -= 1;
+                    renderYear();
+                }
+            });
+            document.getElementById("next-year").addEventListener("click", () => {
+                if (displayedYear < maximumYear) {
+                    displayedYear += 1;
+                    renderYear();
+                }
+            });
+
+            renderYear();
+        })();
+    </script>
+{% endblock %}

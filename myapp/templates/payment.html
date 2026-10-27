@@ -1,0 +1,207 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block title %}
+<title>Complete payment | Pool Club</title>
+{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/payment.css' %}">
+{% endblock %}
+
+{% block content %}
+<main class="payment-page">
+    <div class="payment-shell">
+        <a class="payment-back-link" href="{% url 'dashboard' %}">
+            <span aria-hidden="true">&larr;</span> Back to dashboard
+        </a>
+
+        <article class="payment-card" aria-labelledby="payment-title">
+            <header class="payment-header">
+                <span class="payment-mark" aria-hidden="true">8</span>
+                <p class="payment-eyebrow">POOL CLUB <span></span> SECURE CHECKOUT</p>
+                <h1 id="payment-title">Complete your payment</h1>
+                <p>Review your booking and continue to secure checkout.</p>
+            </header>
+
+            {% if messages %}
+            <div class="payment-notices" role="status" aria-live="polite">
+                {% for message in messages %}
+                <p>{{ message }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if payment_error %}
+            <p class="payment-error" role="alert">{{ payment_error }}</p>
+            {% endif %}
+
+            <section class="booking-summary" aria-labelledby="booking-summary-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-eyebrow">YOUR RESERVATION</p>
+                        <h2 id="booking-summary-title">Booking summary</h2>
+                    </div>
+                    <span class="booking-reference">#{{ booking.id }}</span>
+                </div>
+
+                <dl class="booking-details">
+                    <div class="detail-row">
+                        <dt>Plan</dt>
+                        <dd>{{ booking.get_plan_display }}</dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Time</dt>
+                        <dd>{{ slot_time_display }}</dd>
+                    </div>
+                    <div class="detail-row detail-row-dates">
+                        <dt>Booking dates</dt>
+                        <dd>{{ booking.selected_dates|default:booking.start_date }}</dd>
+                    </div>
+                    {% if booking.weekdays %}
+                    <div class="detail-row">
+                        <dt>Weekdays</dt>
+                        <dd>{{ booking.weekdays }}</dd>
+                    </div>
+                    {% endif %}
+                    <div class="detail-row">
+                        <dt>Booked for</dt>
+                        <dd>{{ booking.username }}</dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="payment-total" aria-label="Payment total">
+                <div>
+                    <p class="section-eyebrow">TOTAL DUE</p>
+                    <p class="total-caption">{{ booking.get_plan_display }} booking</p>
+                </div>
+                <p class="total-amount">
+                    <span>{{ payment.currency }}</span> {{ payment.amount|floatformat:2 }}
+                </p>
+            </section>
+
+            <div class="payment-status-row">
+                <span class="status-indicator status-{{ payment.payment_status }}"></span>
+                <span>Payment {{ payment.get_payment_status_display|lower }}</span>
+            </div>
+
+            {% if can_pay %}
+            <button
+                type="button"
+                id="pay-button"
+                class="pay-button"
+                data-amount="₹{{ payment.amount|floatformat:2 }}"
+                aria-describedby="payment-help"
+            >
+                <span>Continue to secure payment</span>
+                <span aria-hidden="true">&rarr;</span>
+            </button>
+            <p class="payment-help" id="payment-help">
+                Your card and payment details are handled securely by Razorpay.
+            </p>
+            <p class="payment-client-error" id="payment-client-error" role="alert" hidden></p>
+
+            <form
+                id="payment-verification-form"
+                method="post"
+                action="{% url 'verify_payment' booking_id=booking.id %}"
+                hidden
+            >
+                {% csrf_token %}
+                <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id">
+                <input type="hidden" name="razorpay_order_id" id="razorpay_order_id">
+                <input type="hidden" name="razorpay_signature" id="razorpay_signature">
+            </form>
+
+            <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+            <script>
+                (() => {
+                    const payButton = document.getElementById("pay-button");
+                    const errorMessage = document.getElementById("payment-client-error");
+                    const amountLabel = payButton.dataset.amount;
+
+                    function showError(message) {
+                        errorMessage.textContent = message;
+                        errorMessage.hidden = false;
+                        payButton.disabled = false;
+                        payButton.innerHTML =
+                            `<span>Try payment again</span><span aria-hidden="true">&rarr;</span>`;
+                    }
+
+                    payButton.addEventListener("click", () => {
+                        if (typeof window.Razorpay !== "function") {
+                            showError("Secure checkout could not be loaded. Please refresh and try again.");
+                            return;
+                        }
+
+                        errorMessage.hidden = true;
+                        payButton.disabled = true;
+                        payButton.innerHTML = "<span>Opening secure checkout...</span>";
+
+                        const checkout = new window.Razorpay({
+                            key: "{{ razorpay_key_id|escapejs }}",
+                            amount: {{ amount_paise }},
+                            currency: "{{ payment.currency|escapejs }}",
+                            name: "Pool Club",
+                            description: "{{ booking.get_plan_display|escapejs }} pool booking",
+                            order_id: "{{ razorpay_order_id|escapejs }}",
+                            handler(response) {
+                                if (
+                                    !response.razorpay_payment_id ||
+                                    !response.razorpay_order_id ||
+                                    !response.razorpay_signature
+                                ) {
+                                    showError("The payment response was incomplete. Please try again.");
+                                    return;
+                                }
+
+                                document.getElementById("razorpay_payment_id").value =
+                                    response.razorpay_payment_id;
+                                document.getElementById("razorpay_order_id").value =
+                                    response.razorpay_order_id;
+                                document.getElementById("razorpay_signature").value =
+                                    response.razorpay_signature;
+                                document.getElementById("payment-verification-form").submit();
+                            },
+                            modal: {
+                                ondismiss() {
+                                    payButton.disabled = false;
+                                    payButton.innerHTML =
+                                        `<span>Continue to secure payment</span><span aria-hidden="true">&rarr;</span>`;
+                                }
+                            },
+                            theme: { color: "#24563A" }
+                        });
+
+                        checkout.on("payment.failed", response => {
+                            showError(
+                                response.error?.description ||
+                                "Payment could not be completed. Please try again."
+                            );
+                        });
+
+                        checkout.open();
+                    });
+                })();
+            </script>
+            {% else %}
+            <a class="pay-button payment-return-link" href="{% url 'dashboard' %}">
+                <span>Return to dashboard</span>
+                <span aria-hidden="true">&rarr;</span>
+            </a>
+            <p class="payment-help">
+                You can review your booking again from your dashboard.
+            </p>
+            {% endif %}
+
+            <footer class="payment-footer">
+                <span aria-hidden="true">&#128274;</span>
+                <span>Secure payment processing</span>
+                <span class="footer-divider" aria-hidden="true"></span>
+                <span>Powered by Razorpay</span>
+            </footer>
+        </article>
+    </div>
+</main>
+{% endblock %}

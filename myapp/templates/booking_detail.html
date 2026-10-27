@@ -1,0 +1,153 @@
+
+{% extends "layout.html" %}
+{% load static %}
+
+{% block title %}
+    <title>booking details</title>
+{% endblock %}
+
+{% block css %}
+    <link rel="stylesheet" href="{% static 'css/booking_detail.css' %}">
+{% endblock %}
+{% block content %}
+<section class="booking-page">
+
+    <div class="booking-header">
+        <div>
+            <span class="booking-eyebrow">POOL BOOKING</span>
+            <h1>My Bookings</h1>
+            <p>Manage and track all your pool reservations.</p>
+        </div>
+
+        <div class="booking-count">
+            <span>Total Bookings</span>
+            <strong>{{ bookings|length }}</strong>
+        </div>
+    </div>
+
+    <div class="booking-card">
+
+        <div class="booking-table-heading">
+            <h2>Booking History</h2>
+            <span class="booking-record-count">
+                {{ bookings|length }} records
+            </span>
+        </div>
+
+        {% if bookings %}
+
+        <div class="booking-table-wrapper">
+            <table class="booking-table">
+
+                <thead>
+                    <tr>
+                        <th>START DATE</th>
+                        <th>END DATE</th>
+                        <th>TIME SLOT</th>
+                        <th>PASS NAME</th>
+                        <th>PRICE</th>
+                        <th>STATUS</th>
+                        <th>ACTION</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for booking in bookings %}
+                    
+                    <tr>
+                        <td>
+                            <div class="booking-date">
+                                <i class="fa-regular fa-calendar"></i>
+                                <span>{{ booking.start_date|default:"—" }}</span>
+                            </div>
+                        </td>
+
+                        <td>
+                            {% if booking.end_date %}
+                                {{ booking.end_date }}
+                            {% else %}
+                                <span class="muted-text">—</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="booking-time">
+                                <i class="fa-regular fa-clock"></i>
+                                <span>{{ booking.slot_time|default:"—" }}</span>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="plan-badge plan-{{ booking.plan|lower }}">
+                                {{ booking.get_plan_display|default:booking.plan }}
+                            </span>
+                        </td>
+
+                        <td class="booking-price">
+                            ₹{{ booking.price|floatformat:2 }}
+                        </td>
+
+                        <td>
+                            {% if booking.booking_status == "success" %}
+                                <span class="status-badge status-success">
+                                    <span class="status-dot"></span>
+                                    Booked
+                                </span>
+                            {% elif booking.booking_status == "pending" %}
+                                <span class="status-badge status-pending">
+                                    <span class="status-dot"></span>
+                                    Pending
+                                </span>
+                            {% elif booking.booking_status == "canceled" %}
+                                <span class="status-badge status-canceled">
+                                    <span class="status-dot"></span>
+                                    Canceled
+                                </span>
+                            {% elif booking.booking_status == "rejected" %}
+                                <span class="status-badge status-rejected">
+                                    <span class="status-dot"></span>
+                                    Rejected
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-pending">
+                                    {{ booking.get_booking_status_display|default:booking.booking_status }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url "booking-canceling" booking.id %}" class="action-link">
+                                <i class="fa-solid fa-ellipsis-vertical"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+        {% else %}
+
+        <div class="empty-bookings">
+            <div class="empty-bookings-icon">
+                <i class="fa-regular fa-calendar-xmark"></i>
+            </div>
+
+            <h3>No bookings yet</h3>
+            <p>Your pool reservations will appear here once you book a slot.</p>
+
+            <a href="{% url 'booking' %}" class="booking-action-btn">
+                <i class="fa-solid fa-plus"></i>
+                Book a Slot
+            </a>
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</section>
+
+
+{% endblock %}

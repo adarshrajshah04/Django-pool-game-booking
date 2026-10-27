@@ -1,0 +1,26 @@
+# Django media files
+media/
+media/**
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables and secrets
+.env
+
+# database
+*.sqlite3
+db.sqlite3
+*.db
+
+# Django collected static files
+staticfiles/
+
+# IDE
+.vscode/
+.idea/

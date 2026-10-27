@@ -1,0 +1,40 @@
+:root {
+    color-scheme: dark;
+    --font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    --color-page: #0B1712;
+    --color-surface: #14271D;
+    --color-input: #0B1712;
+    --color-primary: #24563A;
+    --color-border: #24563A;
+    --color-border-strong: #24563A;
+    --color-gold: #C5A46D;
+    --color-text: #F2EBDD;
+    --color-heading: #F2EBDD;
+    --color-muted: #C5A46D;
+    --color-accent: #24563A;
+    --color-accent-light: #C5A46D;
+    --color-accent-rgb: 36, 86, 58;
+    --color-error: #C5A46D;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    color: var(--color-text);
+    background: var(--color-page);
+    font-family: var(--font-family);
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}

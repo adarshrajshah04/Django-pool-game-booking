@@ -1,0 +1,51 @@
+{% load static %}
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% block title %}
+    <title>pool game</title>
+    {% endblock %}
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.css" integrity="sha512-x9WwyMYBnlXMNQ6kQ/Lyzu1NqIhLQKL5Oq6xByfXuRj7s9CskyCbLv/1IjqzJmXwFXWr0ov6jBV7Qbc0hh9nHg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+
+    <link rel="stylesheet" href="{% static 'css/base.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}" />
+    {% block css %} {% endblock %}
+  </head>
+  <body>
+    
+      <div class="main-sidebar">
+        <div class="sidebar">
+          <ul class="nav-links">
+            <div class='logo'>
+              <div><p>🎱</p> </div>
+               <h2>pool Game</h2>
+            </div>
+            <li><a href="{% url "dashboard" %}"><i class="fa-regular fa-house"></i> Dashboard</a></li>
+            <li><a href="{% url "booking" %}"><i class="fa-regular fa-calendar"></i> Booking tournament</a></li>
+            <li><a href="{% url "booking_detail" %}"><i class="fa-solid fa-list"></i> Booking Details</a></li>
+          </ul>
+          <div class="profile-info">
+            <div class='profile-image'>
+              {% if profile and profile.profile_image %}
+                <img src="{{ profile.profile_image.url }}" alt="Profile Image" />
+              {% endif %}
+            </div>
+            <div class="profile-details">
+              {% comment %} username {% endcomment %}
+              <p>{{user}}</p>
+              <a href="#">View Profile <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+          </div>
+        </div>
+        <div class="content">
+            {% block content %} 
+            {% endblock %}
+        </div>
+      </div>
+   
+  </body>
+</html>
