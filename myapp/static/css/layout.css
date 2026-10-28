@@ -98,10 +98,17 @@
 
 .profile-info {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    align-items: stretch;
     padding: 14px 10px 0;
     border-top: 1px solid rgba(197, 164, 109, 0.16);
+}
+
+.profile-identity {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 12px;
 }
 
 .profile-image {
@@ -122,6 +129,7 @@
 }
 
 .profile-details {
+    flex: 1;
     min-width: 0;
 }
 
@@ -141,14 +149,84 @@
     text-decoration: none;
 }
 
+.profile-info > form {
+    margin-top: 10px;
+}
+
+.logout-button {
+    display: flex;
+    width: 100%;
+    min-height: 42px;
+    align-items: center;
+    gap: 11px;
+    padding: 0 13px;
+    color: var(--color-text);
+    background: linear-gradient(
+        110deg,
+        rgba(36, 86, 58, 0.48),
+        rgba(20, 39, 29, 0.74)
+    );
+    border: 1px solid rgba(197, 164, 109, 0.26);
+    border-radius: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 650;
+    text-align: left;
+    transition:
+        color 160ms ease,
+        background-color 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        transform 160ms ease;
+}
+
 .profile-details a:hover,
-.profile-details a:focus-visible {
+.profile-details a:focus-visible,
+.logout-button:hover {
     color: var(--color-text);
 }
 
-.profile-details a i {
-    margin-left: 3px;
-    font-size: 0.7rem;
+.logout-button:hover {
+    background: linear-gradient(
+        110deg,
+        rgba(36, 86, 58, 0.76),
+        rgba(20, 39, 29, 0.92)
+    );
+    border-color: rgba(197, 164, 109, 0.58);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+    transform: translateY(-1px);
+}
+
+.logout-button > i:first-child {
+    color: var(--color-gold);
+    font-size: 0.95rem;
+}
+
+.logout-button .logout-chevron {
+    margin-left: auto;
+    color: var(--color-gold);
+    font-size: 0.68rem;
+    transition: transform 160ms ease;
+}
+
+.logout-button:hover .logout-chevron {
+    transform: translateX(2px);
+}
+
+.logout-button:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+}
+
+
+
+
+@media (prefers-reduced-motion: reduce) {
+    .logout-button,
+    .logout-button .logout-chevron {
+        transition: none;
+    }
 }
 /* right */
 
@@ -218,7 +296,7 @@
     }
 
     .profile-info {
-        align-self: flex-start;
+        align-self: stretch;
         padding: 12px 4px 0;
     }
 

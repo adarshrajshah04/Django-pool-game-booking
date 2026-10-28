@@ -60,6 +60,13 @@ class PlanModel(models.Model):
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="choseplans")
     
+    booking = models.ForeignKey(
+    "Booking",
+    on_delete=models.CASCADE,
+    related_name="slots",
+    null=True,
+    blank=True,
+)
     plan = models.CharField(
         max_length=10,
         choices=PLAN_CHOICES
@@ -137,6 +144,7 @@ class Booking(models.Model):
     start_date = models.CharField(max_length=100)
     end_date = models.CharField(max_length=100, blank=True, null=True)
     selected_dates = models.TextField(blank=True)
+    holiday_shifted_count = models.PositiveSmallIntegerField(default=0)
     price = models.DecimalField(max_digits=8, decimal_places=2)
     payment_status = models.CharField(max_length=20, default="pending")
     created_at = models.DateTimeField(auto_now_add=True)

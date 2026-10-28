@@ -15,7 +15,7 @@
     color: var(--color-gold);
 }
 .wlc p{
-    color: gray;
+    color: var(--color-muted);
     font-size: small;
     font-weight: 600;
 }
@@ -83,7 +83,7 @@
 }
 
 .user-name-image #user-name p{
-    color: gray;
+    color: var(--color-muted);
     font-size: 14px;
     font-weight: 500;
 }
@@ -98,7 +98,7 @@
 
 .game-main > div {
     background-color: var(--color-surface);
-    border: 1px solid #c5a56d4f;
+    border: 1px solid rgba(197, 164, 109, 0.3);
     border-radius: 15px;
     padding: 20px;
     min-height: 92px;
@@ -108,11 +108,11 @@
 
 .game-main > div:hover {
     transform: translateY(-3px);
-    border-color:  #c5a56d89;
+    border-color: rgba(197, 164, 109, 0.55);
 }
 
 .game-main p {
-    color: #a3a3a3;
+    color: var(--color-muted);
     font-size: 12px;
     font-weight: 400;
     margin: 0 0 8px;
@@ -120,7 +120,7 @@
 }
 
 .game-main h2 {
-    color: #f5f5f5;
+    color: var(--color-heading);
     font-size: 26px;
     font-weight: 700;
     line-height: 1;
@@ -129,17 +129,17 @@
 
 /* Active Slots - Green */
 .game-main > div:nth-child(2) h2 {
-    color: #00df78;
+    color: var(--color-success);
 }
 
 /* Holiday Shifted - Yellow */
 .game-main > div:nth-child(3) h2 {
-    color: #ffc400;
+    color: var(--color-gold);
 }
 
 /* Cancelled - Red */
 .game-main > div:nth-child(4) h2 {
-    color: #ff555d;
+    color: var(--color-danger);
 }
 
 

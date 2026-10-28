@@ -129,7 +129,7 @@
 
 .payment-error,
 .payment-client-error {
-    color: #ffd1ce;
+    color: var(--color-danger, #f0a2a2);
     background: rgba(150, 47, 42, 0.18);
     border: 1px solid rgba(255, 130, 120, 0.32);
 }
@@ -250,13 +250,13 @@
 }
 
 .status-indicator.status-success {
-    background: #55c98b;
-    box-shadow: 0 0 0 4px rgba(85, 201, 139, 0.1);
+    background: var(--color-success, #a8dfb9);
+    box-shadow: 0 0 0 4px rgba(168, 223, 185, 0.1);
 }
 
 .status-indicator.status-failed {
-    background: #ed7770;
-    box-shadow: 0 0 0 4px rgba(237, 119, 112, 0.1);
+    background: var(--color-danger, #f0a2a2);
+    box-shadow: 0 0 0 4px rgba(240, 162, 162, 0.1);
 }
 
 .status-indicator.status-refunded {

@@ -32,7 +32,7 @@
             {% if messages %}
                 <div class="login-messages" role="status">
                     {% for message in messages %}
-                        <p>{{ message }}</p>
+                        <p class="login-message {{ message.tags }}">{{ message }}</p>
                     {% endfor %}
                 </div>
             {% endif %}

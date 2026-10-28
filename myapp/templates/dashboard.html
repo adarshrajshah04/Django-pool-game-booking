@@ -38,24 +38,24 @@
 
         {% comment %} user game data {% endcomment %}
         <div class="game-main">
-            <div>
-                <p> Total slots</p>
-                <h2>0</h2>
+            <div data-dashboard-stat="total-slots">
+                <p>Total slots</p>
+                <h2>{{ total_slots }}</h2>
             </div>
 
-            <div>
-                <p>Active slots </p>
-                <h2>0</h2>
+            <div data-dashboard-stat="active-slots">
+                <p>Active slots</p>
+                <h2>{{ active_slots }}</h2>
             </div>
 
-            <div>
+            <div data-dashboard-stat="holiday-shifted">
                 <p>Holiday Shifted</p>
-                <h2>0</h2>
+                <h2>{{ holiday_shifted }}</h2>
             </div>
 
-            <div>
-                <p> Cancelled</p>
-                <h2>0</h2>
+            <div data-dashboard-stat="cancelled-bookings">
+                <p>Cancelled bookings</p>
+                <h2>{{ cancelled_bookings }}</h2>
             </div>
 
         </div>

@@ -1,0 +1,115 @@
+
+{% extends "layout.html" %}
+{% load static %}
+
+{% block title %}
+<title>Manage booking</title>
+{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/booking_action.css' %}">
+{% endblock %}
+
+{% block content %}
+<main class="booking-action-page">
+    <a class="booking-back-link" href="{% url 'booking_detail' %}">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        Back to bookings
+    </a>
+
+    <section class="booking-action-card">
+        <header class="booking-action-header">
+            <p class="booking-action-eyebrow">BOOKING MANAGEMENT</p>
+            <h1>Manage your booking</h1>
+            <p>Update your schedule or cancel this reservation.</p>
+        </header>
+
+        {% if messages %}
+        <div class="booking-action-messages" role="status">
+            {% for message in messages %}
+            <p class="booking-action-message {{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="booking-action-summary">
+            <div>
+                <span>Plan</span>
+                <strong>{{ booking.get_plan_display }}</strong>
+            </div>
+            <div>
+                <span>Current schedule</span>
+                <strong>{{ booking.selected_dates|default:booking.start_date }}</strong>
+            </div>
+            <div>
+                <span>Time slot</span>
+                <strong>{{ booking.slot_time }}</strong>
+            </div>
+            <div>
+                <span>Status</span>
+                <strong>{{ booking.get_booking_status_display }}</strong>
+            </div>
+        </div>
+
+        {% if can_manage %}
+        <form method="POST" class="booking-update-form">
+            {% csrf_token %}
+            <h2>Update schedule</h2>
+            {% if booking.plan == "monthly" %}
+            <p class="booking-update-help">
+                Monthly bookings keep all reserved dates unchanged. You can only
+                change the time slot.
+            </p>
+            {% else %}
+            <p class="booking-update-help">
+                Changing the start date shifts the full schedule.
+            </p>
+            {% endif %}
+
+            {% if form.non_field_errors %}
+            <div class="booking-form-errors" role="alert">
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}
+
+            {% for field in form %}
+            <div class="booking-form-field">
+                <label for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                </label>
+                {{ field }}
+                {% for error in field.errors %}
+                <p class="booking-field-error" role="alert">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="booking-update-button">
+                <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                Save changes
+            </button>
+        </form>
+
+        <div class="booking-cancel-section">
+            <div>
+                <h2>Cancel reservation</h2>
+                <p>Reserved slots will be released. Payment history will be kept.</p>
+            </div>
+            <form method="POST"
+                action="{% url 'booking-canceling' id %}"
+                onsubmit="return confirm('Cancel this booking? Its reserved slots will be released.');">
+                {% csrf_token %}
+                <button type="submit" class="booking-cancel-button">
+                    Cancel booking
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <p class="booking-closed-notice">
+            This booking is {{ booking.get_booking_status_display|lower }} and can no
+            longer be changed.
+        </p>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

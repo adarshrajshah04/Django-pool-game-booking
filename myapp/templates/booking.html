@@ -116,7 +116,9 @@
                     {% endif %}
                     {% if messages %}
                     <div class="booking-messages" role="status">
-                        {% for message in messages %}<p class="message">{{ message }}</p>{% endfor %}
+                        {% for message in messages %}
+                        <p class="message {{ message.tags }}">{{ message }}</p>
+                        {% endfor %}
                     </div>
                     {% endif %}
                     <button type="submit" class="book-btn">Confirm booking</button>

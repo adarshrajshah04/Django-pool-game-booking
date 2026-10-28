@@ -115,14 +115,31 @@
 }
 
 .login-messages {
+    display: grid;
+    gap: 7px;
     margin: -14px 0 22px;
+}
+
+.login-message {
     padding: 12px 14px;
-    color: var(--color-error);
+    color: var(--color-text);
     background: rgba(197, 164, 109, 0.1);
     border: 1px solid rgba(197, 164, 109, 0.25);
     border-radius: 10px;
     font-size: 13px;
     line-height: 1.5;
+}
+
+.login-message.error {
+    color: var(--color-danger);
+    background: rgba(140, 45, 45, 0.16);
+    border-color: rgba(240, 162, 162, 0.34);
+}
+
+.login-message.success {
+    color: var(--color-success);
+    background: rgba(36, 86, 58, 0.3);
+    border-color: rgba(168, 223, 185, 0.32);
 }
 
 .login-form label {
@@ -155,7 +172,7 @@
 .login-form ul.errorlist {
     margin: 7px 0;
     padding-left: 18px;
-    color: var(--color-error);
+    color: var(--color-danger);
     font-size: 12px;
 }
 

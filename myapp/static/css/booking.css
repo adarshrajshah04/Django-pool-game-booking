@@ -556,11 +556,6 @@
     transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-
-
-
-
-
 .book-btn:hover {
     filter: brightness(1.18);
     box-shadow: 0 13px 28px rgba(0, 0, 0, 0.26);
@@ -782,31 +777,42 @@
 
 .booking-error {
     margin: 10px 0;
-    color: #ff7777;
+    padding: 12px 14px;
+    color: var(--color-danger);
+    background: rgba(140, 45, 45, 0.16);
+    border: 1px solid rgba(240, 162, 162, 0.34);
+    border-radius: 10px;
     font-size: 13px;
+    line-height: 1.5;
 }
 
 .booking-messages {
-    margin-bottom: 20px;
+    display: grid;
+    gap: 8px;
+    margin-bottom: 14px;
 }
 
 .booking-messages .message {
     padding: 12px 16px;
+    color: var(--color-text);
+    background: rgba(197, 164, 109, 0.1);
+    border: 1px solid rgba(197, 164, 109, 0.28);
     border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
-.booking-submit-section {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    width: 100%;
-    margin-top: 2px;
+.booking-messages .message.success {
+    color: var(--color-success);
+    background: rgba(36, 86, 58, 0.3);
+    border-color: rgba(168, 223, 185, 0.32);
 }
 
-.booking-submit-section .book-btn {
-    width: auto;
-    min-width: 210px;
-    margin-top: 0;
+.booking-messages .message.warning,
+.booking-messages .message.error {
+    color: var(--color-danger);
+    background: rgba(140, 45, 45, 0.16);
+    border-color: rgba(240, 162, 162, 0.34);
 }
 
 @media (max-width: 600px) {
@@ -820,19 +826,14 @@
         font-size: 11px;
     }
 
-    .booking-submit-section .book-btn {
-        min-width: 0;
-        width: 100%;
-    }
 }
-
-
 
 .booking-submit-section {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     width: 100%;
+    margin-top: 2px;
 }
 
 .booking-submit-section .book-btn {
@@ -840,4 +841,15 @@
     width: 100%;
     min-width: 0;
     margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .plan-card,
+    .time-section select,
+    .calendar-header button,
+    .monthly-week-nav button,
+    .calendar-day,
+    .book-btn {
+        transition: none;
+    }
 }

@@ -14,7 +14,9 @@
     --color-accent: #24563A;
     --color-accent-light: #C5A46D;
     --color-accent-rgb: 36, 86, 58;
-    --color-error: #C5A46D;
+    --color-success: #A8DFB9;
+    --color-danger: #F0A2A2;
+    --color-error: var(--color-danger);
 }
 
 *,

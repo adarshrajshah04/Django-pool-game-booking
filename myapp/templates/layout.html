@@ -29,16 +29,24 @@
             <li><a href="{% url "booking_detail" %}"><i class="fa-solid fa-list"></i> Booking Details</a></li>
           </ul>
           <div class="profile-info">
-            <div class='profile-image'>
-              {% if profile and profile.profile_image %}
-                <img src="{{ profile.profile_image.url }}" alt="Profile Image" />
-              {% endif %}
+            <div class="profile-identity">
+              <div class="profile-image">
+                {% if profile and profile.profile_image %}
+                  <img src="{{ profile.profile_image.url }}" alt="Profile Image" />
+                {% endif %}
+              </div>
+              <div class="profile-details">
+                <p>{{ user }}</p>
+              </div>
             </div>
-            <div class="profile-details">
-              {% comment %} username {% endcomment %}
-              <p>{{user}}</p>
-              <a href="#">View Profile <i class="fa-solid fa-arrow-right"></i></a>
-            </div>
+            <form method="POST" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button class="logout-button" type="submit">
+                <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+                <span>Sign out</span>
+                <i class="fa-solid fa-chevron-right logout-chevron" aria-hidden="true"></i>
+              </button>
+            </form>
           </div>
         </div>
         <div class="content">

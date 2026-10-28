@@ -5,10 +5,11 @@ from django.contrib.auth.models import User
 
 from django.shortcuts import render, redirect,get_object_or_404
 from django.utils import timezone
-from django.contrib.auth import login,decorators,authenticate
+from django.contrib.auth import login, logout as auth_logout, decorators, authenticate
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Count, Q, Sum
 from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
@@ -22,7 +23,7 @@ from razorpay.errors import (
 )
 from requests.exceptions import RequestException
 from holidays import country_holidays
-from .forms import PlanForm, RegistrationForm
+from .forms import BookingUpdateForm, PlanForm, RegistrationForm
 from .models import Booking, Payment, PlanModel, Profile
 from django.conf import settings
 
@@ -103,6 +104,15 @@ def login_view(request):
         
     return render(request, "login.html", )
 
+
+@login_required(login_url="login")
+@require_POST
+def logout_view(request):
+    auth_logout(request)
+    messages.success(request, "You have been logged out successfully.")
+    return redirect("login")
+
+
 # layout view
 def layout_view(request):
     user=request.user
@@ -126,10 +136,28 @@ def dashboard_view(request):
     # print(user)
     
     profile = Profile.objects.filter(user_id=user).first()
+    user_bookings = Booking.objects.filter(user=user)
+    total_slots = PlanModel.objects.filter(user=user).filter(
+        Q(booking__isnull=True)
+        | Q(booking__booking_status__in=["pending", "success"])
+    ).count()
+    active_slots = PlanModel.objects.filter(user=user).filter(
+        Q(booking__isnull=True) | Q(booking__booking_status="success")
+    ).count()
+    holiday_shifted = (
+        user_bookings.aggregate(total=Sum("holiday_shifted_count"))["total"] or 0
+    )
+    cancelled_bookings = user_bookings.filter(
+        booking_status="canceled",
+    ).count()
     
     context = {
         "user": user,
         "profile": profile,
+        "total_slots": total_slots,
+        "active_slots": active_slots,
+        "holiday_shifted": holiday_shifted,
+        "cancelled_bookings": cancelled_bookings,
     }
 
     return render(request, "dashboard.html", context)
@@ -178,6 +206,7 @@ def selectPlan(request):
 
             today = timezone.localdate()
             holiday_cache = {}
+            holiday_shifted_count = 0
 
             def holiday_name(selected_date):
                 year = selected_date.year
@@ -215,6 +244,8 @@ def selectPlan(request):
                         ):
                             booking_dates.append(selected_date)
                             count += 1
+                        elif selected_date >= today:
+                            holiday_shifted_count += 1
 
                         selected_date += timedelta(days=7)
 
@@ -275,19 +306,6 @@ def selectPlan(request):
 
                 try:
                     with transaction.atomic():
-                        # Save individual date/time slots.
-                        for selected_date in booking_dates:
-                            slot = PlanModel(
-                                user=current_user,
-                                plan=plan,
-                                time_Slot=time_slot,
-                                date=selected_date,
-                                price=price_per_slot,
-                                username=current_user.username,
-                            )
-                            slot.full_clean()
-                            slot.save()
-
                         # Save one summary record.
                         booking=Booking.objects.create(
                             user=current_user,
@@ -302,9 +320,24 @@ def selectPlan(request):
                                 selected_date.isoformat()
                                 for selected_date in booking_dates
                             ),
+                            holiday_shifted_count=holiday_shifted_count,
                             price=total_price,
                             payment_status="pending",
                         )
+
+                        for selected_date in booking_dates:
+                            slot = PlanModel(
+                                booking=booking,
+                                user=current_user,
+                                plan=plan,
+                                time_Slot=time_slot,
+                                date=selected_date,
+                                price=price_per_slot,
+                                username=current_user.username,
+                            )
+                            slot.full_clean()
+                            slot.save()
+
                         # payment record
                         Payment.objects.create(
                             booking=booking,
@@ -349,7 +382,17 @@ def payment_view(request, booking_id):
         user=request.user,
     )
 
-    payment = booking.payment
+    try:
+        payment = booking.payment
+    except Payment.DoesNotExist:
+        payment, _ = Payment.objects.get_or_create(
+            booking=booking,
+            defaults={
+                "amount": booking.price,
+                "currency": "INR",
+                "payment_status": "pending",
+            },
+        )
     payment_error = ""
     razorpay_key_id = settings.RAZORPAY_KEY_ID
     razorpay_key_secret = settings.RAZORPAY_KEY_SECRET
@@ -612,27 +655,257 @@ def booking_detail(request):
     # print(bookings)
     context = {
         "bookings": bookings,
+        "profile": Profile.objects.filter(user_id=request.user).first(),
     }
-    
-
     return render(request, "booking_detail.html", context)
 
 
 
-
-
-# delete booking
 @login_required(login_url="login")
-def deleteBooking(request,id):
-    book=Booking.objects.get(id=id)
-    if book:
-        book.delete()
-        return redirect("booking_details")
-    messages.error("user not found")
+def bookingAction(request, id):
+    booking = get_object_or_404(
+        Booking,
+        id=id,
+        user=request.user,
+    )
+    can_manage = booking.booking_status in {"pending", "success"}
 
-    return render(request,"CURD.html")
-    
+    if request.method == "POST":
+        if not can_manage:
+            messages.error(request, "This booking can no longer be changed.")
+            return redirect("booking_detail")
 
-    
+        form = BookingUpdateForm(request.POST, instance=booking)
+        if form.is_valid():
+            new_time = form.cleaned_data["slot_time"]
+            with transaction.atomic():
+                slots = list(
+                    PlanModel.objects.select_for_update()
+                    .filter(booking=booking)
+                    .order_by("date", "id")
+                )
 
+                if not slots:
+                    try:
+                        old_dates = sorted({
+                            date.fromisoformat(value.strip())
+                            for value in booking.selected_dates.split(",")
+                            if value.strip()
+                        })
+                        if not old_dates:
+                            old_dates = [date.fromisoformat(booking.start_date)]
+                    except ValueError:
+                        old_dates = []
 
+                    legacy_slots = list(
+                        PlanModel.objects.select_for_update()
+                        .filter(
+                            user=request.user,
+                            plan=booking.plan,
+                            time_Slot=booking.slot_time,
+                            date__in=old_dates,
+                            booking__isnull=True,
+                        )
+                        .order_by("date", "id")
+                    )
+                    if (
+                        old_dates
+                        and len(legacy_slots) == len(old_dates)
+                        and [slot.date for slot in legacy_slots] == old_dates
+                    ):
+                        slots = legacy_slots
+
+                expected_slot_count = (
+                    PlanModel.MONTHLY_BOOKING_LIMIT
+                    if booking.plan == "monthly"
+                    else len(slots)
+                )
+                if not slots or len(slots) != expected_slot_count:
+                    form.add_error(
+                        None,
+                        "Saved reservation slots do not match this booking; "
+                        "it cannot be safely updated.",
+                    )
+                else:
+                    slot_ids = [slot.pk for slot in slots]
+                    proposed_dates = [slot.date for slot in slots]
+                    if booking.plan != "monthly":
+                        new_date = form.cleaned_data["start_date"]
+                        old_dates = sorted(slot.date for slot in slots)
+                        if new_date < timezone.localdate():
+                            form.add_error(
+                                "start_date",
+                                "Past dates are not allowed.",
+                            )
+                        else:
+                            shift = new_date - old_dates[0]
+                            proposed_dates = [
+                                selected_date + shift
+                                for selected_date in old_dates
+                            ]
+                            if any(
+                                selected_date < timezone.localdate()
+                                for selected_date in proposed_dates
+                            ):
+                                form.add_error(
+                                    "start_date",
+                                    "The updated schedule cannot include past dates.",
+                                )
+                            else:
+                                holiday_cache = {}
+                                holiday_bookings = []
+                                for selected_date in proposed_dates:
+                                    if selected_date.year not in holiday_cache:
+                                        holiday_cache[selected_date.year] = (
+                                            country_holidays(
+                                                "IN",
+                                                years=[selected_date.year],
+                                            )
+                                        )
+                                    holiday = holiday_cache[
+                                        selected_date.year
+                                    ].get(selected_date)
+                                    if holiday:
+                                        holiday_bookings.append(
+                                            f"{selected_date.isoformat()} ({holiday})"
+                                        )
+                                if holiday_bookings:
+                                    form.add_error(
+                                        "start_date",
+                                        "Bookings cannot be moved to holidays: "
+                                        + ", ".join(holiday_bookings),
+                                    )
+
+                    if not form.errors:
+                        full_dates = set(
+                            PlanModel.objects.filter(
+                                date__in=proposed_dates,
+                                time_Slot=new_time,
+                            )
+                            .exclude(pk__in=slot_ids)
+                            .values("date")
+                            .annotate(slot_count=Count("pk"))
+                            .filter(
+                                slot_count__gte=PlanModel.MAX_USERS_PER_SLOT
+                            )
+                            .values_list("date", flat=True)
+                        )
+                        if full_dates:
+                            form.add_error(
+                                None,
+                                "The selected time is fully booked on: "
+                                + ", ".join(
+                                    selected_date.isoformat()
+                                    for selected_date in sorted(full_dates)
+                                ),
+                            )
+                        else:
+                            booking.slot_time = new_time
+                            update_fields = ["slot_time"]
+                            if booking.plan != "monthly":
+                                proposed_dates.sort()
+                                booking.start_date = proposed_dates[0].isoformat()
+                                booking.end_date = proposed_dates[-1].isoformat()
+                                booking.selected_dates = ", ".join(
+                                    selected_date.isoformat()
+                                    for selected_date in proposed_dates
+                                )
+                                update_fields.extend([
+                                    "start_date",
+                                    "end_date",
+                                    "selected_dates",
+                                ])
+                            booking.save(update_fields=update_fields)
+
+                            slots.sort(key=lambda slot: slot.date)
+                            for index, slot in enumerate(slots):
+                                if booking.plan != "monthly":
+                                    slot.date = proposed_dates[index]
+                                slot.time_Slot = new_time
+                                slot.booking = booking
+                            PlanModel.objects.bulk_update(
+                                slots,
+                                ["date", "time_Slot", "booking"],
+                            )
+
+            if not form.errors:
+                messages.success(request, "Booking updated successfully.")
+                return redirect("booking_detail")
+    else:
+        form = BookingUpdateForm(instance=booking)
+
+    return render(request, "bookingAction.html", {
+        "id": id,
+        "booking": booking,
+        "form": form,
+        "can_manage": can_manage,
+        "profile": Profile.objects.filter(user_id=request.user).first(),
+    })
+
+@login_required(login_url="login")
+@require_POST
+def deleteBooking(request, id):
+    booking = get_object_or_404(
+        Booking,
+        id=id,
+        user=request.user,
+    )
+
+    if booking.booking_status not in {"pending", "success"}:
+        messages.error(request, "This booking has already been canceled.")
+        return redirect("booking_detail")
+
+    with transaction.atomic():
+        slots = PlanModel.objects.filter(booking=booking)
+        if not slots.exists():
+            try:
+                booking_dates = [
+                    date.fromisoformat(value.strip())
+                    for value in booking.selected_dates.split(",")
+                    if value.strip()
+                ]
+            except ValueError:
+                booking_dates = []
+            if not booking_dates:
+                try:
+                    booking_dates = [date.fromisoformat(booking.start_date)]
+                except ValueError:
+                    booking_dates = []
+
+            legacy_slots = list(
+                PlanModel.objects.select_for_update()
+                .filter(
+                    user=request.user,
+                    plan=booking.plan,
+                    time_Slot=booking.slot_time,
+                    date__in=booking_dates,
+                    booking__isnull=True,
+                )
+                .order_by("date", "id")
+            )
+            expected_dates = sorted(set(booking_dates))
+            if (
+                len(legacy_slots) == len(expected_dates)
+                and [slot.date for slot in legacy_slots] == expected_dates
+            ):
+                slots = PlanModel.objects.filter(
+                    pk__in=[slot.pk for slot in legacy_slots]
+                )
+            else:
+                slots = PlanModel.objects.none()
+        slots.delete()
+        booking.booking_status = "canceled"
+        booking.save(update_fields=["booking_status"])
+
+    if booking.payment_status == "success":
+        messages.warning(
+            request,
+            "Booking canceled. Payment history has been retained; "
+            "contact support about a refund.",
+        )
+    else:
+        messages.success(
+            request,
+            "Booking canceled and reserved slots released.",
+        )
+    return redirect("booking_detail")

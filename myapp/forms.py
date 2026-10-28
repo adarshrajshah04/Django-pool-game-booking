@@ -165,8 +165,35 @@ class PlanForm(forms.Form):
 
 # # update booking model
 
-# class BookingUpdateForm(forms.ModelForm):
-    
-#     class Meta:
-#         model = PlanModel
-#         fields = 
+class BookingUpdateForm(forms.ModelForm):
+    start_date = forms.DateField(
+        required=True,
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+                "class": "form-control",
+            }
+        ),
+    )
+    slot_time = forms.ChoiceField(
+        choices=PlanModel.TIME_SLOT_CHOICES,
+        required=True,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    class Meta:
+        model = Booking
+        fields = ["start_date", "slot_time"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance and self.instance.pk and self.instance.plan == "monthly":
+            self.fields.pop("start_date")
+        elif self.instance and self.instance.pk:
+            try:
+                self.initial["start_date"] = date.fromisoformat(
+                    self.instance.start_date
+                )
+            except (ValueError, TypeError):
+                pass

@@ -12,6 +12,14 @@
 {% block content %}
 <section class="booking-page">
 
+    {% if messages %}
+    <div class="booking-page-messages" role="status">
+        {% for message in messages %}
+        <p class="booking-page-message {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="booking-header">
         <div>
             <span class="booking-eyebrow">POOL BOOKING</span>
@@ -115,8 +123,11 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url "booking-canceling" booking.id %}" class="action-link">
-                                <i class="fa-solid fa-ellipsis-vertical"></i>
+                            <a href="{% url 'bookingAction' id=booking.id %}"
+                                class="action-link"
+                                aria-label="Manage booking #{{ booking.id }}"
+                                title="Manage booking">
+                                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                             </a>
                         </td>
                     </tr>
